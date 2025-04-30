@@ -623,4 +623,44 @@ For every first message in a session, you should ask: "Apa yang you nak saya ban
     
     // Initialize the chat
     initChat();
-}); 
+});
+
+// Perform web search using Wikipedia API (free, no key required)
+async function performWebSearch(query) {
+    try {
+        // Clean the query for better search results
+        const cleanedQuery = cleanSearchQuery(query);
+        
+        // Use Wikipedia API as a free alternative
+        const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srlimit=5&format=json&origin=*&srsearch=${encodeURIComponent(cleanedQuery)}`;
+        
+        const response = await fetch(wikiUrl);
+        
+        if (!response.ok) {
+            throw new Error('Search failed');
+        }
+        
+        const data = await response.json();
+        
+        // Extract relevant information from wiki search results
+        let searchResults = [];
+        
+        if (data.query && data.query.search && data.query.search.length > 0) {
+            searchResults = data.query.search.map(result => {
+                // Remove HTML tags from snippet
+                const cleanSnippet = result.snippet.replace(/<\/?[^>]+(>|$)/g, "");
+                
+                return {
+                    title: result.title,
+                    link: `https://en.wikipedia.org/wiki/${encodeURIComponent(result.title.replace(/ /g, '_'))}`,
+                    snippet: cleanSnippet || 'No description available'
+                };
+            });
+        }
+        
+        return searchResults;
+    } catch (error) {
+        console.error('Web search error:', error);
+        return [];
+    }
+} 

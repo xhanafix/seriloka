@@ -13,7 +13,12 @@ A virtual CEO assistant chatbot (named Hanafi) for Seriloka, a Malaysian interio
 - Chat history tracking with timestamps
 - Export chat history as JSON
 - Clear history functionality
-- **Real-time web search capability** using SerpAPI to provide up-to-date information
+- **Wikipedia search capability** to provide up-to-date information (no API key required!)
+
+## Demo
+
+![Seriloka Hanafi Screenshot](https://i.imgur.com/example.png)
+*Replace with your own screenshot*
 
 ## Setup Instructions
 
@@ -23,23 +28,17 @@ A virtual CEO assistant chatbot (named Hanafi) for Seriloka, a Malaysian interio
 2. Generate an API key from your dashboard
 3. Make sure you have credits or a subscription that allows access to the `google/gemini-2.0-flash-exp:free` model
 
-### 2. (Optional) Get a SerpAPI Key for Web Search
-
-1. Sign up for an account at [SerpAPI](https://serpapi.com/)
-2. Get an API key from your dashboard
-3. This enables Hanafi to search the web for real-time information
-
-### 3. Local Testing
+### 2. Local Testing
 
 To run the application locally:
 
 1. Clone or download this repository to your computer
 2. Open `index.html` in your web browser
 3. Enter your OpenRouter API key when prompted
-4. (Optional) Enter your SerpAPI key for web search capability
+4. Turn on web search if desired (using the toggle switch)
 5. Start chatting with Hanafi, your virtual CEO assistant
 
-### 4. GitHub Pages Deployment
+### 3. GitHub Pages Deployment
 
 To deploy the website to GitHub Pages:
 
@@ -53,18 +52,18 @@ To deploy the website to GitHub Pages:
 ## Usage
 
 1. Enter your OpenRouter API key when you first open the application
-2. (Optional) Enter your SerpAPI key to enable web search
-3. Toggle web search on/off using the switch
-4. Hanafi will greet you with "Apa yang you nak saya bantu hari ini untuk majukan Seriloka?"
-5. Type your questions or requests in English or Bahasa Malaysia
-6. Hanafi will respond in the same language you used
+2. Toggle web search on/off using the switch (enabled by default)
+3. Hanafi will greet you with "Apa yang you nak saya bantu hari ini untuk majukan Seriloka?"
+4. Type your questions or requests in English or Bahasa Malaysia
+5. Hanafi will respond in the same language you used
 
 ### Web Search Functionality
 
-- When web search is enabled, Hanafi will automatically search for relevant information on the internet for queries that contain keywords like "latest", "current", "trend", etc.
+- When web search is enabled, Hanafi will automatically search Wikipedia for information on queries that contain keywords like "latest", "current", "trend", etc.
 - This allows Hanafi to provide up-to-date information beyond its training data
-- The search uses SerpAPI to fetch real-time Google search results
+- The search uses Wikipedia's API to fetch information (no API key required)
 - You can disable web search at any time using the toggle switch
+- Search results are displayed in the chat interface with clickable links
 
 ### Chat History Management
 
@@ -75,9 +74,9 @@ To deploy the website to GitHub Pages:
 
 ## Security Note
 
-This application stores your API keys in your browser's local storage. While convenient, be aware that:
+This application stores your OpenRouter API key in your browser's local storage. While convenient, be aware that:
 
-- The keys are only stored on your device
+- The key is only stored on your device
 - It's recommended to clear your browser data if using a shared computer
 - For increased security in a production environment, consider implementing a backend proxy
 
@@ -92,6 +91,21 @@ const systemMessage = {
 };
 ```
 
+You can also modify the search query detection in the `extractSearchQueries` function to customize when web searches are triggered.
+
+## Technical Details
+
+- **Frontend**: Pure HTML, CSS (TailwindCSS), and JavaScript
+- **AI**: OpenRouter API with Google's Gemini 2.0 Flash model
+- **Web Search**: Wikipedia API (free, no key required)
+- **Storage**: Browser's localStorage for chat history and API key
+
+## Troubleshooting
+
+- If web search isn't working, make sure your browser allows cross-origin requests to Wikipedia
+- If the assistant isn't responding, check that your OpenRouter API key is valid and has sufficient credits
+- For issues with chat history not saving, ensure your browser has localStorage enabled
+
 ## License
 
 This project is open-source and available for use under the MIT License.
@@ -101,4 +115,4 @@ This project is open-source and available for use under the MIT License.
 - Built with [TailwindCSS](https://tailwindcss.com/)
 - Icons from [Font Awesome](https://fontawesome.com/)
 - Powered by [OpenRouter](https://openrouter.ai) and Google Gemini 2.0 Flash
-- Web search powered by [SerpAPI](https://serpapi.com/) 
+- Web search powered by [Wikipedia API](https://www.mediawiki.org/wiki/API:Main_page) 
