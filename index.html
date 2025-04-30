@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seriloka CEO Assistant - Hanafi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        .chat-container {
+            height: calc(100vh - 180px);
+        }
+        .typing-indicator::after {
+            content: "";
+            animation: dots 1.5s infinite;
+        }
+        @keyframes dots {
+            0%, 20% { content: "."; }
+            40% { content: ".."; }
+            60%, 100% { content: "..."; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <header class="mb-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-indigo-800">Seriloka</h1>
+                    <p class="text-gray-600">CEO Virtual Assistant - Hanafi</p>
+                </div>
+                <div class="bg-indigo-100 p-3 rounded-full">
+                    <i class="fas fa-robot text-2xl text-indigo-600"></i>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div id="chat-box" class="bg-white rounded-lg shadow-md p-4 mb-4 overflow-y-auto chat-container">
+                <div id="messages" class="space-y-4">
+                    <!-- Messages will be inserted here -->
+                </div>
+                <div id="typing-indicator" class="hidden">
+                    <div class="flex items-center bg-gray-100 rounded-lg p-3 max-w-[80%]">
+                        <div class="w-8 h-8 rounded-full bg-indigo-200 flex items-center justify-center mr-3">
+                            <i class="fas fa-robot text-indigo-600"></i>
+                        </div>
+                        <p class="text-gray-700 typing-indicator">Thinking</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="relative">
+                <textarea 
+                    id="user-input" 
+                    class="w-full p-4 pr-16 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                    placeholder="Type your message here..."
+                    rows="2"
+                ></textarea>
+                <button 
+                    id="send-btn" 
+                    class="absolute right-3 bottom-3 bg-indigo-600 text-white rounded-full p-2.5 hover:bg-indigo-700 transition-colors"
+                    title="Send message"
+                >
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+
+            <div class="mt-4">
+                <div class="bg-yellow-100 p-3 rounded-lg text-sm text-yellow-800">
+                    <p><i class="fas fa-info-circle mr-1"></i> Enter your OpenRouter API key below to enable the assistant</p>
+                </div>
+                <div class="mt-2 flex">
+                    <input 
+                        type="password" 
+                        id="api-key" 
+                        class="flex-grow p-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Enter your OpenRouter API key"
+                    >
+                    <button 
+                        id="save-key" 
+                        class="bg-green-600 text-white px-4 py-2 rounded-r-lg hover:bg-green-700 transition-colors"
+                    >
+                        Save Key
+                    </button>
+                </div>
+            </div>
+            
+            <div class="mt-4 bg-blue-100 p-3 rounded-lg">
+                <div class="flex items-center text-blue-800 mb-2">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    <p class="text-sm font-medium">Web Search Feature</p>
+                </div>
+                <p class="text-xs text-blue-700">Hanafi can now search Wikipedia for real-time information. No API key required!</p>
+                <p class="text-xs text-blue-700 mt-1">Simply turn on the web search toggle after entering your OpenRouter API key.</p>
+            </div>
+        </main>
+
+        <footer class="mt-8 text-center text-gray-500 text-sm">
+            <p>Powered by OpenRouter + Google Gemini 2.0 Flash</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html> 
