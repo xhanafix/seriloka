@@ -222,15 +222,31 @@ For every first message in a session, you should ask: "Apa yang you nak saya ban
         const messageDiv = document.createElement('div');
         messageDiv.className = 'flex justify-end';
         messageDiv.innerHTML = `
-            <div class="bg-indigo-500 text-white rounded-lg py-2 px-4 max-w-[80%]">
+            <div class="bg-indigo-500 text-white rounded-lg py-2 px-4 max-w-[80%] relative group">
                 <p>${formatMessage(text)}</p>
                 ${saveToHistory ? `<small class="block text-indigo-200 text-right mt-1">${formatTime(new Date())}</small>` : ''}
+                ${saveToHistory ? `<button class="edit-message-btn absolute top-2 right-2 text-indigo-200 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <i class="fas fa-edit text-xs"></i>
+                </button>` : ''}
             </div>
         `;
         messagesContainer.appendChild(messageDiv);
         
         if (saveToHistory) {
-            chatHistory.push(createHistoryEntry('user', text));
+            const historyEntry = createHistoryEntry('user', text);
+            chatHistory.push(historyEntry);
+            
+            // Add message ID attribute to the message div for editing
+            messageDiv.setAttribute('data-message-id', historyEntry.timestamp);
+            
+            // Add click event for edit button
+            const editBtn = messageDiv.querySelector('.edit-message-btn');
+            if (editBtn) {
+                editBtn.addEventListener('click', () => {
+                    openEditModal(historyEntry.timestamp, text);
+                });
+            }
+            
             saveChatHistory();
         }
         
@@ -550,46 +566,86 @@ For every first message in a session, you should ask: "Apa yang you nak saya ban
         typingIndicator.classList.remove('hidden');
         scrollToBottom();
         
-        // Prepare messages array with system message and conversation history
-        const messages = [systemMessage];
-        
-        // Add all visible messages from the chat (skip the first bot message if it's the API key instruction)
-        const messageElements = messagesContainer.querySelectorAll('div.flex');
-        let isFirstMessage = true;
-        
-        for (const element of messageElements) {
-            if (isFirstMessage && element.classList.contains('items-start')) {
-                const text = element.querySelector('p').textContent;
-                if (text === "Please enter your OpenRouter API key to begin.") {
-                    isFirstMessage = false;
-                    continue;
+        try {
+            // Create messages array for API call
+            // Always include the system message
+            const messages = [systemMessage];
+            
+            // Check if any messages were edited
+            let hasEditedMessages = false;
+            for (const entry of chatHistory) {
+                if (entry.role === 'assistant' && entry.potentiallyOutdated) {
+                    hasEditedMessages = true;
+                    break;
                 }
             }
             
-            // Skip search indicators and results (they're already added as system messages)
-            if (element.classList.contains('searching-indicator') || 
-                element.classList.contains('search-result')) {
-                continue;
+            // Add all messages from chat history
+            chatHistory.forEach(entry => {
+                if (entry.role === 'user' || entry.role === 'assistant') {
+                    messages.push({
+                        role: entry.role,
+                        content: entry.content
+                    });
+                } else if (entry.role === 'search' && entry.searchResults) {
+                    // Add search results as a system message
+                    messages.push({
+                        role: 'system',
+                        content: `Web search results for "${entry.content}":\n${entry.searchResults}`
+                    });
+                }
+            });
+            
+            // If there were edited messages, add a system message to inform the AI
+            if (hasEditedMessages) {
+                messages.push({
+                    role: "system",
+                    content: "Note: The user has edited one of their previous messages. Please consider the entire conversation context as it is presented now, not as it may have been previously."
+                });
             }
             
-            const role = element.classList.contains('justify-end') ? 'user' : 'assistant';
-            const textElement = element.querySelector('p');
-            if (textElement) {
-                const content = textElement.textContent;
-                messages.push({ role, content });
+            // Check for search queries
+            if (isSearching) {
+                const searchQueries = extractSearchQueries(userMessage);
+                if (searchQueries.length > 0) {
+                    try {
+                        for (const query of searchQueries) {
+                            const cleanQuery = cleanSearchQuery(query);
+                            
+                            // Show searching indicator
+                            showSearchingIndicator();
+                            
+                            // Perform the search
+                            const searchResults = await performWebSearch(cleanQuery);
+                            
+                            // Display search results in chat
+                            displaySearchResults(searchResults, cleanQuery);
+                            
+                            // Add search results to messages for context
+                            messages.push({
+                                role: 'system',
+                                content: `Web search results for "${cleanQuery}":\n${searchResults.join('\n')}`
+                            });
+                            
+                            // Store search in chat history
+                            const searchEntry = createHistoryEntry('search', cleanQuery);
+                            searchEntry.searchResults = searchResults.join('\n');
+                            chatHistory.push(searchEntry);
+                            saveChatHistory();
+                        }
+                    } catch (error) {
+                        console.error("Search error:", error);
+                        addSystemMessage("Could not complete web search. Continuing without search results.");
+                    }
+                }
             }
-            isFirstMessage = false;
-        }
-        
-        // Add the current user message
-        messages.push({ role: 'user', content: userMessage });
-        
-        // Fetch and display response
-        try {
+            
+            // Fetch and display response
             const botResponse = await fetchAssistantResponse(messages);
             addBotMessage(botResponse, true);
         } catch (error) {
-            addBotMessage("Sorry, I encountered an error. Please check your API key or try again later.", true);
+            console.error("Error:", error);
+            addBotMessage("Sorry, I encountered an error. Please try again later.", true);
         } finally {
             typingIndicator.classList.add('hidden');
             scrollToBottom();
@@ -663,4 +719,129 @@ async function performWebSearch(query) {
         console.error('Web search error:', error);
         return [];
     }
+}
+
+// Create and open edit modal
+function openEditModal(messageId, text) {
+    // Create modal overlay
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    
+    // Create modal content
+    modalOverlay.innerHTML = `
+        <div class="bg-white rounded-lg p-6 w-full max-w-lg">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Edit Message</h3>
+            <textarea id="edit-text" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none mb-4" rows="4">${text}</textarea>
+            <div class="flex justify-end space-x-3">
+                <button id="cancel-edit" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">Cancel</button>
+                <button id="save-edit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">Save Changes</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modalOverlay);
+    
+    // Focus on textarea
+    const textarea = document.getElementById('edit-text');
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    
+    // Handle cancel button
+    document.getElementById('cancel-edit').addEventListener('click', () => {
+        document.body.removeChild(modalOverlay);
+    });
+    
+    // Handle save button
+    document.getElementById('save-edit').addEventListener('click', () => {
+        const newText = textarea.value.trim();
+        if (newText) {
+            updateMessage(messageId, newText);
+        }
+        document.body.removeChild(modalOverlay);
+    });
+    
+    // Close modal on escape key
+    document.addEventListener('keydown', function escapeListener(e) {
+        if (e.key === 'Escape') {
+            document.body.removeChild(modalOverlay);
+            document.removeEventListener('keydown', escapeListener);
+        }
+    });
+}
+
+// Update message in UI and chat history
+function updateMessage(messageId, newText) {
+    // Update the message in chat history
+    const messageIndex = chatHistory.findIndex(msg => msg.timestamp === messageId);
+    
+    if (messageIndex !== -1) {
+        // Update in chat history
+        chatHistory[messageIndex].content = newText;
+        saveChatHistory();
+        
+        // Update in UI
+        const messageDiv = document.querySelector(`[data-message-id="${messageId}"]`);
+        if (messageDiv) {
+            const messageParagraph = messageDiv.querySelector('p');
+            messageParagraph.innerHTML = formatMessage(newText);
+        }
+        
+        // Add system message about the edit
+        addSystemMessage("Message edited. Type a new message to continue the conversation with the updated context.");
+        
+        // Mark messages after this one as potentially outdated
+        markMessagesAsOutdated(messageIndex);
+    }
+}
+
+// Mark assistant messages after an edited message as potentially outdated
+function markMessagesAsOutdated(editedIndex) {
+    // Find all assistant messages that come after the edited message
+    for (let i = editedIndex + 1; i < chatHistory.length; i++) {
+        if (chatHistory[i].role === 'assistant') {
+            // Mark this message as potentially outdated
+            chatHistory[i].potentiallyOutdated = true;
+            
+            // Update UI to show this message as outdated
+            const messageElements = Array.from(messagesContainer.querySelectorAll('.flex.items-start'));
+            // Find the right message element (we need to count only assistant messages)
+            let assistantMessageCount = 0;
+            let targetElement = null;
+            
+            for (const el of messageElements) {
+                if (!el.classList.contains('search-result') && !el.querySelector('.bg-gray-100')) {
+                    assistantMessageCount++;
+                    if (assistantMessageCount > editedIndex) {
+                        targetElement = el;
+                        break;
+                    }
+                }
+            }
+            
+            if (targetElement) {
+                const messageDiv = targetElement.querySelector('div:nth-child(2)');
+                if (messageDiv && !messageDiv.querySelector('.outdated-warning')) {
+                    const warningDiv = document.createElement('div');
+                    warningDiv.className = 'outdated-warning text-amber-600 text-xs mt-1 italic';
+                    warningDiv.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i> This response may be outdated due to an edited message';
+                    messageDiv.appendChild(warningDiv);
+                }
+            }
+        }
+    }
+    
+    saveChatHistory();
+}
+
+// Add system message to the chat
+function addSystemMessage(text) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'flex justify-center my-2';
+    messageDiv.innerHTML = `
+        <div class="bg-gray-100 text-gray-600 rounded-lg py-1 px-3 text-xs">
+            <i class="fas fa-info-circle mr-1"></i> ${text}
+        </div>
+    `;
+    messagesContainer.appendChild(messageDiv);
+    scrollToBottom();
 } 
