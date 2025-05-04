@@ -51,6 +51,9 @@ IMPORTANT: Do not simulate or mention web searches in your responses. When you n
 For every first message in a session, you should ask: "Apa yang you nak saya bantu hari ini untuk majukan Seriloka?"`
     };
     
+    // Initialize toast container for notifications
+    createToastContainer();
+    
     // Load chat history from localStorage
     function loadChatHistory() {
         const savedHistory = localStorage.getItem(CHAT_HISTORY_KEY);
@@ -162,17 +165,34 @@ For every first message in a session, you should ask: "Apa yang you nak saya ban
             <button id="clear-history" class="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition-colors text-sm">
                 <i class="fas fa-trash mr-1"></i> Clear History
             </button>
-            <button id="export-history" class="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition-colors text-sm">
-                <i class="fas fa-download mr-1"></i> Export History
-            </button>
+            <div class="flex space-x-2">
+                <button id="import-history" class="bg-purple-500 text-white px-3 py-1 rounded-lg hover:bg-purple-600 transition-colors text-sm">
+                    <i class="fas fa-upload mr-1"></i> Import History
+                </button>
+                <button id="export-history" class="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition-colors text-sm">
+                    <i class="fas fa-download mr-1"></i> Export History
+                </button>
+            </div>
         `;
         
         const apiKeyContainer = document.querySelector('.mt-4');
         apiKeyContainer.parentNode.insertBefore(historyToggleDiv, apiKeyContainer.nextSibling);
         
+        // Add the hidden file input for importing
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.id = 'import-file';
+        fileInput.accept = '.json';
+        fileInput.className = 'hidden';
+        historyToggleDiv.parentNode.insertBefore(fileInput, historyToggleDiv.nextSibling);
+        
         // Event listeners for history buttons
         document.getElementById('clear-history').addEventListener('click', clearHistory);
         document.getElementById('export-history').addEventListener('click', exportHistory);
+        document.getElementById('import-history').addEventListener('click', () => {
+            document.getElementById('import-file').click();
+        });
+        document.getElementById('import-file').addEventListener('change', importHistory);
     }
     
     // Add web search toggle to the interface
@@ -219,6 +239,49 @@ For every first message in a session, you should ask: "Apa yang you nak saya ban
     
     // Export chat history as JSON file
     function exportHistory() {
+        // If no chat history exists, create a sample template
+        if (chatHistory.length === 0) {
+            if (confirm('You have no chat history to export. Would you like to download a sample template file instead?')) {
+                const sampleHistory = [
+                    {
+                        "timestamp": new Date().toISOString(),
+                        "role": "system",
+                        "content": "This is a sample chat history template file."
+                    },
+                    {
+                        "timestamp": new Date().toISOString(),
+                        "role": "user",
+                        "content": "Hello Hanafi, can you help me with marketing ideas for Seriloka?"
+                    },
+                    {
+                        "timestamp": new Date().toISOString(),
+                        "role": "assistant",
+                        "content": "Selamat sejahtera! I'd be happy to help with marketing ideas for Seriloka's products. What specific area would you like to focus on - room perfumes, modular kitchen cabinets, or wall accessories?",
+                        "model": selectedModel
+                    }
+                ];
+                
+                const sampleData = JSON.stringify(sampleHistory, null, 2);
+                const blob = new Blob([sampleData], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `seriloka-chat-template.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showToast('Downloaded sample template file', 'info');
+                return;
+            } else {
+                showToast('Export cancelled', 'warning');
+                return;
+            }
+        }
+        
+        // Export actual chat history
         const historyData = JSON.stringify(chatHistory, null, 2);
         const blob = new Blob([historyData], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -230,6 +293,230 @@ For every first message in a session, you should ask: "Apa yang you nak saya ban
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        
+        showToast(`Exported ${chatHistory.length} messages`, 'success');
+    }
+    
+    // Create toast container for notifications
+    function createToastContainer() {
+        const toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.className = 'fixed bottom-4 right-4 z-50 flex flex-col space-y-2';
+        document.body.appendChild(toastContainer);
+    }
+    
+    // Show a toast notification
+    function showToast(message, type = 'info', duration = 3000) {
+        const toastContainer = document.getElementById('toast-container');
+        
+        // Define colors based on type
+        let bgColor, textColor, icon;
+        switch(type) {
+            case 'success':
+                bgColor = 'bg-green-500';
+                textColor = 'text-white';
+                icon = 'fa-check-circle';
+                break;
+            case 'error':
+                bgColor = 'bg-red-500';
+                textColor = 'text-white';
+                icon = 'fa-exclamation-circle';
+                break;
+            case 'warning':
+                bgColor = 'bg-yellow-500';
+                textColor = 'text-white';
+                icon = 'fa-exclamation-triangle';
+                break;
+            default: // info
+                bgColor = 'bg-blue-500';
+                textColor = 'text-white';
+                icon = 'fa-info-circle';
+        }
+        
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `${bgColor} ${textColor} px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 flex items-center max-w-xs`;
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        
+        toast.innerHTML = `
+            <i class="fas ${icon} mr-2"></i>
+            <span>${message}</span>
+        `;
+        
+        // Add to container
+        toastContainer.appendChild(toast);
+        
+        // Animate in
+        setTimeout(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(0)';
+        }, 10);
+        
+        // Remove after duration
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            
+            setTimeout(() => {
+                toastContainer.removeChild(toast);
+            }, 300); // Wait for animation to complete
+        }, duration);
+    }
+    
+    // Import chat history from JSON file
+    function importHistory(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        // Show loading toast
+        showToast('Importing chat history...', 'info');
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                
+                // Basic validation of imported data
+                if (!Array.isArray(importedData)) {
+                    throw new Error('Invalid format: Not an array');
+                }
+                
+                // Check if each item has the required fields
+                const isValid = importedData.every(item => 
+                    item.timestamp && 
+                    (item.role === 'user' || item.role === 'assistant' || item.role === 'search') && 
+                    typeof item.content === 'string'
+                );
+                
+                if (!isValid) {
+                    throw new Error('Invalid format: Missing required fields');
+                }
+                
+                // Show preview dialog instead of direct confirmation
+                showImportPreview(importedData, file.name);
+                
+            } catch (error) {
+                console.error('Import error:', error);
+                showToast(`Error importing: ${error.message}`, 'error', 5000);
+                // Reset the file input
+                document.getElementById('import-file').value = '';
+            }
+        };
+        
+        reader.onerror = function() {
+            showToast('Error reading the file', 'error');
+            // Reset the file input
+            document.getElementById('import-file').value = '';
+        };
+        
+        reader.readAsText(file);
+    }
+    
+    // Show preview of imported chat history
+    function showImportPreview(importedData, fileName) {
+        // Create modal overlay
+        const modalOverlay = document.createElement('div');
+        modalOverlay.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        
+        // Count messages by role
+        const userMessages = importedData.filter(msg => msg.role === 'user').length;
+        const assistantMessages = importedData.filter(msg => msg.role === 'assistant').length;
+        const searchResults = importedData.filter(msg => msg.role === 'search').length;
+        
+        // Get first and last message date
+        const firstDate = new Date(importedData[0]?.timestamp || Date.now());
+        const lastDate = new Date(importedData[importedData.length - 1]?.timestamp || Date.now());
+        
+        // Format dates
+        const formatDate = (date) => {
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        };
+        
+        // Create modal content
+        modalOverlay.innerHTML = `
+            <div class="bg-white rounded-lg p-6 w-full max-w-lg">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">Import Chat History</h3>
+                    <span class="text-gray-500 text-sm">File: ${fileName}</span>
+                </div>
+                
+                <div class="bg-indigo-50 p-4 rounded-lg mb-4">
+                    <h4 class="font-medium text-indigo-800 mb-2">Import Summary</h4>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                            <p><span class="font-medium">Total messages:</span> ${importedData.length}</p>
+                            <p><span class="font-medium">User messages:</span> ${userMessages}</p>
+                            <p><span class="font-medium">Assistant responses:</span> ${assistantMessages}</p>
+                        </div>
+                        <div>
+                            <p><span class="font-medium">Search results:</span> ${searchResults}</p>
+                            <p><span class="font-medium">First message:</span> ${formatDate(firstDate)}</p>
+                            <p><span class="font-medium">Last message:</span> ${formatDate(lastDate)}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-4 overflow-auto max-h-48 border border-gray-200 rounded-lg p-2">
+                    <h4 class="font-medium text-gray-700 mb-2">Preview (first 3 messages)</h4>
+                    ${importedData.slice(0, 3).map(msg => `
+                        <div class="mb-2 border-b border-gray-100 pb-2">
+                            <p class="text-xs text-gray-500">${msg.role.toUpperCase()} - ${formatDate(new Date(msg.timestamp))}</p>
+                            <p class="text-sm truncate">${msg.content.substring(0, 100)}${msg.content.length > 100 ? '...' : ''}</p>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <div class="bg-yellow-50 p-3 rounded-lg text-sm text-yellow-800 mb-4">
+                    <p><i class="fas fa-exclamation-triangle mr-1"></i> Importing will replace your current chat history.</p>
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button id="cancel-import" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">Cancel</button>
+                    <button id="confirm-import" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">Import History</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modalOverlay);
+        
+        // Handle cancel button
+        document.getElementById('cancel-import').addEventListener('click', () => {
+            document.body.removeChild(modalOverlay);
+            // Reset the file input
+            document.getElementById('import-file').value = '';
+            showToast('Import cancelled', 'warning');
+        });
+        
+        // Handle confirm button
+        document.getElementById('confirm-import').addEventListener('click', () => {
+            // Import the history
+            chatHistory = importedData;
+            saveChatHistory();
+            
+            // Display the imported history
+            displayChatHistory();
+            scrollToBottom();
+            
+            // Remove modal
+            document.body.removeChild(modalOverlay);
+            
+            // Reset the file input
+            document.getElementById('import-file').value = '';
+            
+            // Show success toast
+            showToast(`Successfully imported ${importedData.length} messages`, 'success');
+        });
+        
+        // Close modal on escape key
+        document.addEventListener('keydown', function escapeListener(e) {
+            if (e.key === 'Escape') {
+                document.body.removeChild(modalOverlay);
+                document.removeEventListener('keydown', escapeListener);
+                // Reset the file input
+                document.getElementById('import-file').value = '';
+            }
+        });
     }
     
     // Send the first message from the assistant

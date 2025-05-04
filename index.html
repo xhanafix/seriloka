@@ -39,6 +39,21 @@
             border-color: #6366f1;
             box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
         }
+        /* Toast animation styles */
+        @keyframes slide-in {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slide-out {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        .toast-enter {
+            animation: slide-in 0.3s ease forwards;
+        }
+        .toast-exit {
+            animation: slide-out 0.3s ease forwards;
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans">
@@ -129,6 +144,24 @@
                 <p class="text-xs text-blue-700">Hanafi can now search Wikipedia for real-time information. No API key required!</p>
                 <p class="text-xs text-blue-700 mt-1">Simply turn on the web search toggle after entering your OpenRouter API key.</p>
             </div>
+
+            <div class="mt-4 flex justify-between items-center">
+                <button id="clear-history" class="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition-colors text-sm">
+                    <i class="fas fa-trash mr-1"></i> Clear History
+                </button>
+                <div class="flex space-x-2">
+                    <button id="import-history" class="bg-purple-500 text-white px-3 py-1 rounded-lg hover:bg-purple-600 transition-colors text-sm">
+                        <i class="fas fa-upload mr-1"></i> Import History
+                    </button>
+                    <button id="export-history" class="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition-colors text-sm">
+                        <i class="fas fa-download mr-1"></i> Export History
+                    </button>
+                </div>
+            </div>
+            <p class="text-xs text-gray-600 mt-1 text-center">
+                <i class="fas fa-info-circle mr-1"></i> Import/Export lets you save conversations and continue them later
+            </p>
+            <input type="file" id="import-file" accept=".json" class="hidden">
         </main>
 
         <footer class="mt-8 text-center text-gray-500 text-sm">
