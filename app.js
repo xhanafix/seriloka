@@ -9,12 +9,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Constants
     const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-    const MODEL = 'google/gemini-2.0-flash-exp:free';
+    const DEFAULT_MODEL = 'google/gemini-2.0-flash-exp:free';
+    const MODEL_KEY = 'seriloka_model';
     const LOCAL_STORAGE_KEY = 'seriloka_api_key';
     const CHAT_HISTORY_KEY = 'seriloka_chat_history';
     
     // Application state
     let apiKey = localStorage.getItem(LOCAL_STORAGE_KEY) || '';
+    let selectedModel = localStorage.getItem(MODEL_KEY) || DEFAULT_MODEL;
     let chatHistory = loadChatHistory();
     let isSearching = false;
     let searchingIndicator = null;
@@ -40,6 +42,10 @@ You should be sharp, strategic, and business-oriented in your responses.
 You should be able to communicate in both English and Bahasa Malaysia fluently.
 You should always respond in the same language that the user uses to communicate with you.
 
+The user can switch between different AI models. When they do, you should adapt your approach:
+- If the model is Google Gemini 2.0 Flash, focus on fast, concise business advice
+- If the model is Google LearnLM 1.5 Pro, incorporate more educational elements in your responses
+
 IMPORTANT: Do not simulate or mention web searches in your responses. When you need real-time information, I will provide it to you through a system message. Never write phrases like "[SEARCHING THE WEB...]", "Let me search for that", or similar statements. Just give your answer based on the information provided to you.
 
 For every first message in a session, you should ask: "Apa yang you nak saya bantu hari ini untuk majukan Seriloka?"`
@@ -63,7 +69,8 @@ For every first message in a session, you should ask: "Apa yang you nak saya ban
         return {
             timestamp: new Date().toISOString(),
             role,
-            content
+            content,
+            model: selectedModel // Store the model used for this message
         };
     }
     
@@ -74,7 +81,28 @@ For every first message in a session, you should ask: "Apa yang you nak saya ban
             if (entry.role === 'user') {
                 addUserMessage(entry.content, false);
             } else if (entry.role === 'assistant') {
-                addBotMessage(entry.content, false);
+                // Use the model that was used for this message if available
+                const messageModel = entry.model || selectedModel;
+                const modelIcon = getModelIcon(messageModel);
+                
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'flex items-start';
+                messageDiv.innerHTML = `
+                    <div class="w-8 h-8 rounded-full bg-indigo-200 flex items-center justify-center mr-3">
+                        <i class="fas fa-robot text-indigo-600"></i>
+                    </div>
+                    <div class="bg-gray-100 rounded-lg py-2 px-4 max-w-[80%]">
+                        <div class="flex items-center text-xs text-gray-500 mb-1">
+                            <i class="${modelIcon} mr-1"></i> ${getModelDisplayName(messageModel)}
+                        </div>
+                        <p>${formatMessage(entry.content)}</p>
+                        <small class="block text-gray-500 text-right mt-1">${formatTime(new Date(entry.timestamp))}</small>
+                        ${entry.potentiallyOutdated ? `<div class="outdated-warning text-amber-600 text-xs mt-1 italic">
+                            <i class="fas fa-exclamation-triangle mr-1"></i> This response may be outdated due to an edited message
+                        </div>` : ''}
+                    </div>
+                `;
+                messagesContainer.appendChild(messageDiv);
             } else if (entry.role === 'search') {
                 // Reconstruct search result display if it exists in history
                 // This is a simplified version - in production you would store more details
@@ -101,6 +129,12 @@ For every first message in a session, you should ask: "Apa yang you nak saya ban
     function initChat() {
         if (apiKey) {
             apiKeyInput.value = '********';
+            
+            // Set the selected model in the dropdown
+            const modelSelect = document.getElementById('model-select');
+            if (modelSelect && selectedModel) {
+                modelSelect.value = selectedModel;
+            }
             
             if (chatHistory.length > 0) {
                 displayChatHistory();
@@ -258,6 +292,9 @@ For every first message in a session, you should ask: "Apa yang you nak saya ban
         // Filter out any search-like text that the AI might generate
         const filteredText = text.replace(/\[(SEARCHING|SEARCHING THE WEB|RE-INITIATING WEB SEARCH|SEARCHING DATABASES).*?\]/gi, '');
         
+        // Get model icon based on current model
+        const modelIcon = getModelIcon(selectedModel);
+        
         const messageDiv = document.createElement('div');
         messageDiv.className = 'flex items-start';
         messageDiv.innerHTML = `
@@ -265,6 +302,9 @@ For every first message in a session, you should ask: "Apa yang you nak saya ban
                 <i class="fas fa-robot text-indigo-600"></i>
             </div>
             <div class="bg-gray-100 rounded-lg py-2 px-4 max-w-[80%]">
+                <div class="flex items-center text-xs text-gray-500 mb-1">
+                    <i class="${modelIcon} mr-1"></i> ${getModelDisplayName(selectedModel)}
+                </div>
                 <p>${formatMessage(filteredText)}</p>
                 ${saveToHistory ? `<small class="block text-gray-500 text-right mt-1">${formatTime(new Date())}</small>` : ''}
             </div>
@@ -277,6 +317,15 @@ For every first message in a session, you should ask: "Apa yang you nak saya ban
         }
         
         scrollToBottom();
+    }
+    
+    // Get appropriate icon for model
+    function getModelIcon(modelId) {
+        const iconMap = {
+            'google/gemini-2.0-flash-exp:free': 'fas fa-bolt',
+            'google/learnlm-1.5-pro-experimental:free': 'fas fa-graduation-cap'
+        };
+        return iconMap[modelId] || 'fas fa-robot';
     }
     
     // Show searching indicator
@@ -522,7 +571,7 @@ For every first message in a session, you should ask: "Apa yang you nak saya ban
                     'X-Title': 'Seriloka CEO Assistant - Hanafi'
                 },
                 body: JSON.stringify({
-                    model: MODEL,
+                    model: selectedModel,
                     messages: messages,
                     max_tokens: 1000
                 })
@@ -677,8 +726,43 @@ For every first message in a session, you should ask: "Apa yang you nak saya ban
         }
     });
     
+    // Add event listener for model selection
+    const modelSelect = document.getElementById('model-select');
+    if (modelSelect) {
+        modelSelect.addEventListener('change', () => {
+            selectedModel = modelSelect.value;
+            localStorage.setItem(MODEL_KEY, selectedModel);
+            
+            // Update the footer to show the selected model
+            updateModelDisplay();
+            
+            // Inform the user about the model change
+            addSystemMessage(`Model changed to ${getModelDisplayName(selectedModel)}`);
+        });
+    }
+    
+    // Function to get user-friendly model name
+    function getModelDisplayName(modelId) {
+        const modelMap = {
+            'google/gemini-2.0-flash-exp:free': 'Google Gemini 2.0 Flash',
+            'google/learnlm-1.5-pro-experimental:free': 'Google LearnLM 1.5 Pro'
+        };
+        return modelMap[modelId] || modelId;
+    }
+    
+    // Update the footer to display the current model
+    function updateModelDisplay() {
+        const modelDisplay = document.getElementById('model-display');
+        if (modelDisplay) {
+            modelDisplay.textContent = getModelDisplayName(selectedModel);
+        }
+    }
+    
     // Initialize the chat
     initChat();
+    
+    // Set initial model display
+    updateModelDisplay();
 });
 
 // Perform web search using Wikipedia API (free, no key required)
